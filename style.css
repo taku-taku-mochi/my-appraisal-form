@@ -1,0 +1,81 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+}
+.form-input {
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.form-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    border-color: #3b82f6;
+}
+.btn-primary {
+    transition: all 0.3s ease;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.btn-secondary {
+    transition: all 0.3s ease;
+}
+.btn-secondary:hover {
+    background-color: #fca5a5;
+}
+.step-content {
+    display: none;
+}
+.step-content.active {
+    display: block;
+}
+.accordion-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: #f3f4f6;
+    transition: background-color 0.2s ease;
+}
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 1.5rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height .35s ease, padding-top .35s ease, padding-bottom .35s ease, opacity .2s ease;
+}
+.accordion-content.open {
+    max-height: 1500px;
+    padding: 1.5rem;
+    opacity: 1;
+    pointer-events: auto;
+}
+.accordion-content:not(.open) > * {
+     margin-top: 0 !important;
+}
+.item-block.is-open .accordion-header {
+    border-bottom: 1px solid #e5e7eb;
+}
+.toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 9999px;
+    transition: all 0.2s;
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+}
+.toggle-label:has(input:checked) {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+.drop-zone.drag-active {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+

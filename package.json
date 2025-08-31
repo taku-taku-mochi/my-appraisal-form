@@ -1,8 +1,26 @@
 {
   "name": "my-appraisal-form",
   "version": "1.0.0",
-  "description": "Airtable and Firebase form submission function.",
+  "description": "Appraisal and identification reception form.",
   "dependencies": {
     "node-fetch": "^2.7.0"
   }
 }
+```
+
+**ステップ3：メインの「スーツケース」に荷物を入れる**
+ターミナルが`my-appraisal-form`フォルダのルートにいることを確認し、以下のコマンドを再度実行します。
+これにより、`node_modules`（スーツケース）が、プロジェクトの正しい場所（ルートフォルダ）に作成されます。
+
+```bash
+npm install
+```
+
+**ステップ4：最終版をGitHubに保存し、デプロイする**
+最後に、この修正をGitHubに保存し、Netlifyにデプロイします。
+ターミナルで、以下の3つのコマンドを順番に実行してください。
+
+```bash
+git add .
+git commit -m "fix: Consolidate dependencies into root package.json"
+git push

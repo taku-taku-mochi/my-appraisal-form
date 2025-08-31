@@ -342,12 +342,7 @@ form.addEventListener('submit', async (e) => {
     }
 
     try {
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        // ★ ここで、どちらのAirtable Baseに送信するかを決定します。 ★
-        // ★ 今は暫定的に 'baseA' に固定しています。              ★
-        // ★ 将来的には、フォームの入力内容に応じて変更できます。    ★
-        // ★ (例: 特定のアイテム種別が選ばれたら 'baseB' にするなど) ★
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        // 送信先を'baseA'に固定します。
         const baseSelection = 'baseA'; 
 
         const orderFields = {
@@ -385,7 +380,7 @@ form.addEventListener('submit', async (e) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                baseSelection: baseSelection, // ★決定したBaseの情報をサーバーに送信
+                baseSelection: baseSelection,
                 order: orderFields, 
                 items: itemsData 
             }),

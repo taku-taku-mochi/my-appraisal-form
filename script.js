@@ -8,13 +8,12 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9
 // TODO: Firebaseプロジェクトを作成し、実際の設定に置き換えてください
 // https://firebase.google.com/
 const firebaseConfig = {
-  apiKey: "AIzaSyCno4rIpUnBn9XeD0HKoyMxxXZAw-4imNg",
-  authDomain: "my-appraisal-form.firebaseapp.com",
-  projectId: "my-appraisal-form",
-  storageBucket: "my-appraisal-form.firebasestorage.app",
-  messagingSenderId: "758251737789",
-  appId: "1:758251737789:web:25d4cc6298fcb5e5525dd4",
-  measurementId: "G-8WC19S8L83"
+  apiKey: "AIzaSy...YOUR_API_KEY",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.appspot.com",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
 };
 // ↑↑↑ ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ ↑↑↑
 

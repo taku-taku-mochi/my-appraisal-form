@@ -6,13 +6,3 @@
     "node-fetch": "^2.7.0"
   }
 }
-```
-
-**ステップ2：最終版をGitHubに保存し、デプロイする**
-最後に、この修正をGitHubに保存し、Netlifyにデプロイします。
-ターミナルで`my-appraisal-form`フォルダにいることを確認し、以下の3つのコマンドを順番に実行してください。
-
-```bash
-git add package.json
-git commit -m "fix: Correct package.json formatting"
-git push

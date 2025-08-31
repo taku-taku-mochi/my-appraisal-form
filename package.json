@@ -1,0 +1,8 @@
+{
+  "name": "my-appraisal-form",
+  "version": "1.0.0",
+  "description": "Airtable and Firebase form submission function.",
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  }
+}

@@ -5,8 +5,8 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9
 
 // --- Firebase Configuration ---
 // ↓↓↓ ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ ↓↓↓
-// TODO: Firebaseプロジェクトを作成し、実際の設定に置き換えてください
-// https://firebase.google.com/
+// TODO: この設定は、Netlifyの環境変数から読み込むように変更します。
+// ローカルでテストする際は、一時的にご自身のFirebase設定をここに入力してください。
 const firebaseConfig = {
   apiKey: "AIzaSy...YOUR_API_KEY",
   authDomain: "your-project-id.firebaseapp.com",
@@ -17,6 +17,7 @@ const firebaseConfig = {
 };
 // ↑↑↑ ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ ↑↑↑
 
+
 // Initialize Firebase
 let storage;
 try {
@@ -24,26 +25,15 @@ try {
     storage = getStorage(app);
     const auth = getAuth(app);
     signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed, uploads might be restricted.", error);
+        console.error("Anonymous sign-in failed:", error);
         showMessage('画像アップロードの認証に失敗しました。', 'error');
     });
 } catch (error) {
-    console.error("Firebaseの初期化に失敗しました。firebaseConfigの設定が正しいか確認してください。", error);
+    console.error("Firebaseの初期化に失敗しました。", error);
     storage = null;
 }
 
-
-// --- CONFIGURATION ---
-const AIRTABLE_API_KEY = 'YOUR_API_KEY'; // AirtableのAPIキーに置き換えてください
-const AIRTABLE_BASE_ID = 'YOUR_BASE_ID'; // AirtableのBase IDに置き換えてください
-
-const AIRTABLE_TABLES = {
-    ORDERS: '受付情報',
-    ITEMS: '商品情報',
-    CERTIFICATES: '証書情報'
-};
-
-// --- DATA & PRICES ---
+// --- DATA & PRICES (No changes here) ---
 const CERTIFICATE_PRICES = {
     鑑定書: { 'S': 15000, 'M': 20000, 'L': 25000, 'メモ（ソーティング）': 30000, 'D': 35000 },
     鑑別書: { 'S': 10000, 'M': 15000, 'L': 20000, 'メモ（ソーティング）': 25000, 'D': 30000 }
@@ -56,7 +46,7 @@ const ITEM_TYPES = ['リング', 'ペンダント', 'ピアス', 'イヤリン�
 const CERTIFICATE_TYPES = ['鑑定書', '鑑別書'];
 const CERTIFICATE_SIZES = ['S', 'M', 'L', 'メモ（ソーティング）', 'D'];
 
-// --- DOM ELEMENTS ---
+// --- DOM ELEMENTS (No changes here) ---
 const form = document.getElementById('receptionForm');
 const itemsContainer = document.getElementById('itemsContainer');
 const addItemBtnTop = document.getElementById('addItemBtnTop');
@@ -73,10 +63,10 @@ const confirmationSummary = document.getElementById('confirmationSummary');
 const stepIndicators = document.querySelectorAll('.step-indicator');
 const stepTexts = document.querySelectorAll('.step-text');
 
-// --- STATE ---
+// --- STATE (No changes here) ---
 let itemCounter = 0;
 
-// --- FUNCTIONS ---
+// --- FUNCTIONS (No major changes, except submit handler) ---
 function showMessage(message, type) {
     messageBox.textContent = message;
     messageBox.className = 'p-4 text-center rounded-lg text-sm mt-6';
@@ -337,6 +327,9 @@ itemsContainer.addEventListener('drop', e => {
     }
 });
 
+// ===================================================================================
+// UPDATE: Form Submission Logic
+// ===================================================================================
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
@@ -358,52 +351,50 @@ form.addEventListener('submit', async (e) => {
     }
 
     try {
-        const orderResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLES.ORDERS)}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: {
-                '顧客名': form.customerName.value, '連絡先': form.contactInfo.value,
-                '受付日': new Date().toISOString().split('T')[0], '希望納期': form.desiredDeliveryDate.value,
-                '合計金額': parseInt(totalPriceEl.textContent.replace(/[¥,]/g, ''), 10), 'ステータス': '受付済み',
-            }})
-        });
-        if (!orderResponse.ok) throw new Error(`受付情報の送信に失敗しました: ${await orderResponse.text()}`);
-        const { id: orderId } = await orderResponse.json();
-
-        for (const block of itemsContainer.querySelectorAll('.item-block')) {
+        // Prepare order data
+        const orderData = {
+            '顧客名': form.customerName.value,
+            '連絡先': form.contactInfo.value,
+            '受付日': new Date().toISOString().split('T')[0],
+            '希望納期': form.desiredDeliveryDate.value,
+            '合計金額': parseInt(totalPriceEl.textContent.replace(/[¥,]/g, ''), 10),
+            'ステータス': '受付済み',
+        };
+        
+        // Prepare item and certificate data
+        const items = await Promise.all(Array.from(itemsContainer.querySelectorAll('.item-block')).map(async (block) => {
             const imageInput = block.querySelector('input[type="file"]');
             const attachmentUrls = await Promise.all(
                 Array.from(imageInput.files).map(file => uploadFileAndGetUrl(file).then(url => ({ url })))
             );
             
             const itemData = {
-                '受付ID': [orderId],
                 '商品種別': block.querySelector('[name="itemType"]').value,
                 '備考': block.querySelector('[name="itemNotes"]').value,
                 '写真': attachmentUrls.length > 0 ? attachmentUrls : undefined
             };
-            const itemResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLES.ITEMS)}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: itemData })
-            });
-            if (!itemResponse.ok) throw new Error(`商品情報の送信に失敗しました: ${await itemResponse.text()}`);
-            const { id: itemId } = await itemResponse.json();
-            
+
             const certData = {
-                '商品ID': [itemId],
                 '鑑定・鑑別': block.querySelector(`input[name^="certificateType-"]:checked`).value,
                 '証書サイズ': block.querySelector(`select[name="certificateSize"]`).value,
                 'オプション': Array.from(block.querySelectorAll('input[name="itemOptions"]:checked')).map(cb => cb.value).join(', '),
             };
-            const certResponse = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLES.CERTIFICATES)}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: certData })
-            });
-             if (!certResponse.ok) throw new Error(`証書情報の送信に失敗しました: ${await certResponse.text()}`);
+
+            return { itemData, certData };
+        }));
+
+        // ★★★ CHANGE: Send all data to the new serverless function endpoint ★★★
+        const response = await fetch('/.netlify/functions/submit-form', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderData, items })
+        });
+
+        if (!response.ok) {
+            const errorResult = await response.json();
+            throw new Error(errorResult.error || 'サーバーでエラーが発生しました。');
         }
-        
+
         showMessage('受付が完了しました！', 'success');
         form.reset();
         itemsContainer.innerHTML = '';

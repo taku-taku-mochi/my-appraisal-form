@@ -5,8 +5,8 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9
 
 // --- Firebase Configuration ---
 // ↓↓↓ ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ ↓↓↓
-// TODO: この設定は、Netlifyの環境変数から読み込むように変更します。
-// ローカルでテストする際は、一時的にご自身のFirebase設定をここに入力してください。
+// TODO: Firebaseプロジェクトを作成し、実際の設定に置き換えてください
+// https://firebase.google.com/
 const firebaseConfig = {
   apiKey: "AIzaSy...YOUR_API_KEY",
   authDomain: "your-project-id.firebaseapp.com",
@@ -17,7 +17,6 @@ const firebaseConfig = {
 };
 // ↑↑↑ ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ ↑↑↑
 
-
 // Initialize Firebase
 let storage;
 try {
@@ -25,15 +24,15 @@ try {
     storage = getStorage(app);
     const auth = getAuth(app);
     signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
+        console.error("Anonymous sign-in failed, uploads might be restricted.", error);
         showMessage('画像アップロードの認証に失敗しました。', 'error');
     });
 } catch (error) {
-    console.error("Firebaseの初期化に失敗しました。", error);
+    console.error("Firebaseの初期化に失敗しました。firebaseConfigの設定が正しいか確認してください。", error);
     storage = null;
 }
 
-// --- DATA & PRICES (No changes here) ---
+// --- DATA & PRICES ---
 const CERTIFICATE_PRICES = {
     鑑定書: { 'S': 15000, 'M': 20000, 'L': 25000, 'メモ（ソーティング）': 30000, 'D': 35000 },
     鑑別書: { 'S': 10000, 'M': 15000, 'L': 20000, 'メモ（ソーティング）': 25000, 'D': 30000 }
@@ -46,7 +45,7 @@ const ITEM_TYPES = ['リング', 'ペンダント', 'ピアス', 'イヤリン�
 const CERTIFICATE_TYPES = ['鑑定書', '鑑別書'];
 const CERTIFICATE_SIZES = ['S', 'M', 'L', 'メモ（ソーティング）', 'D'];
 
-// --- DOM ELEMENTS (No changes here) ---
+// --- DOM ELEMENTS ---
 const form = document.getElementById('receptionForm');
 const itemsContainer = document.getElementById('itemsContainer');
 const addItemBtnTop = document.getElementById('addItemBtnTop');
@@ -63,10 +62,10 @@ const confirmationSummary = document.getElementById('confirmationSummary');
 const stepIndicators = document.querySelectorAll('.step-indicator');
 const stepTexts = document.querySelectorAll('.step-text');
 
-// --- STATE (No changes here) ---
+// --- STATE ---
 let itemCounter = 0;
 
-// --- FUNCTIONS (No major changes, except submit handler) ---
+// --- FUNCTIONS ---
 function showMessage(message, type) {
     messageBox.textContent = message;
     messageBox.className = 'p-4 text-center rounded-lg text-sm mt-6';
@@ -327,9 +326,6 @@ itemsContainer.addEventListener('drop', e => {
     }
 });
 
-// ===================================================================================
-// UPDATE: Form Submission Logic
-// ===================================================================================
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
@@ -341,18 +337,20 @@ form.addEventListener('submit', async (e) => {
         if (!storage) throw new Error("Firebase Storageが初期化されていません。");
         const filePath = `uploads/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, filePath);
-        try {
-            const snapshot = await uploadBytes(storageRef, file);
-            return await getDownloadURL(snapshot.ref);
-        } catch (error) {
-            console.error("Upload failed:", error);
-            throw new Error(`ファイル「${file.name}」のアップロードに失敗しました。`);
-        }
+        const snapshot = await uploadBytes(storageRef, file);
+        return await getDownloadURL(snapshot.ref);
     }
 
     try {
-        // Prepare order data
-        const orderData = {
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        // ★ ここで、どちらのAirtable Baseに送信するかを決定します。 ★
+        // ★ 今は暫定的に 'baseA' に固定しています。              ★
+        // ★ 将来的には、フォームの入力内容に応じて変更できます。    ★
+        // ★ (例: 特定のアイテム種別が選ばれたら 'baseB' にするなど) ★
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        const baseSelection = 'baseA'; 
+
+        const orderFields = {
             '顧客名': form.customerName.value,
             '連絡先': form.contactInfo.value,
             '受付日': new Date().toISOString().split('T')[0],
@@ -360,48 +358,51 @@ form.addEventListener('submit', async (e) => {
             '合計金額': parseInt(totalPriceEl.textContent.replace(/[¥,]/g, ''), 10),
             'ステータス': '受付済み',
         };
-        
-        // Prepare item and certificate data
-        const items = await Promise.all(Array.from(itemsContainer.querySelectorAll('.item-block')).map(async (block) => {
+
+        const itemsData = [];
+        for (const block of itemsContainer.querySelectorAll('.item-block')) {
             const imageInput = block.querySelector('input[type="file"]');
             const attachmentUrls = await Promise.all(
-                Array.from(imageInput.files).map(file => uploadFileAndGetUrl(file).then(url => ({ url })))
+                Array.from(imageInput.files).map(file => uploadFileAndGetUrl(file))
             );
-            
-            const itemData = {
+
+            const itemDetails = {
                 '商品種別': block.querySelector('[name="itemType"]').value,
                 '備考': block.querySelector('[name="itemNotes"]').value,
-                '写真': attachmentUrls.length > 0 ? attachmentUrls : undefined
+                '写真': attachmentUrls.length > 0 ? attachmentUrls.map(url => ({ url })) : undefined
             };
 
-            const certData = {
+            const certDetails = {
                 '鑑定・鑑別': block.querySelector(`input[name^="certificateType-"]:checked`).value,
                 '証書サイズ': block.querySelector(`select[name="certificateSize"]`).value,
                 'オプション': Array.from(block.querySelectorAll('input[name="itemOptions"]:checked')).map(cb => cb.value).join(', '),
             };
+            
+            itemsData.push({ itemDetails, certDetails });
+        }
 
-            return { itemData, certData };
-        }));
-
-        // ★★★ CHANGE: Send all data to the new serverless function endpoint ★★★
         const response = await fetch('/.netlify/functions/submit-form', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderData, items })
+            body: JSON.stringify({ 
+                baseSelection: baseSelection, // ★決定したBaseの情報をサーバーに送信
+                order: orderFields, 
+                items: itemsData 
+            }),
         });
 
         if (!response.ok) {
-            const errorResult = await response.json();
-            throw new Error(errorResult.error || 'サーバーでエラーが発生しました。');
+            const errorBody = await response.json();
+            throw new Error(errorBody.error || `サーバーでエラーが発生しました。`);
         }
-
+        
         showMessage('受付が完了しました！', 'success');
         form.reset();
         itemsContainer.innerHTML = '';
         itemCounter = 0;
         addItemBlock(true);
         goToStep(1);
-        
+
     } catch (error) {
         console.error('Submission Error:', error);
         showMessage(`エラーが発生しました: ${error.message}`, 'error');

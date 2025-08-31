@@ -1,85 +1,103 @@
-// このファイルがサーバーサイドで動作するプロキシ（代理人）となります。
-// AirtableとFirebaseへのAPIリクエストは、ここから安全に行われます。
-
-// 'node-fetch' をインポートします。Netlifyの関数では必要です。
+// Airtable APIと通信するための部品をインポートします。
 const fetch = require('node-fetch');
 
-exports.handler = async function(event, context) {
-    // フロントエンドから送られてきたデータを受け取る
-    const { orderData, items } = JSON.parse(event.body);
+// サーバーレス関数の本体
+exports.handler = async (event) => {
+  // 2つのBase IDを環境変数から安全に読み込みます。
+  const { AIRTABLE_API_KEY, AIRTABLE_BASE_ID_A, AIRTABLE_BASE_ID_B } = process.env;
 
-    // 環境変数から安全にAPIキーを読み込む
-    const { AIRTABLE_API_KEY, AIRTABLE_BASE_ID } = process.env;
+  // Airtableのキーが設定されていない場合はエラーを返します。
+  if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID_A || !AIRTABLE_BASE_ID_B) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'AirtableのAPIキーまたはBase IDがNetlifyの環境変数に設定されていません。' }),
+    };
+  }
 
-    const AIRTABLE_ORDERS_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/受付情報`;
-    const AIRTABLE_ITEMS_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/商品情報`;
-    const AIRTABLE_CERTIFICATES_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/証書情報`;
+  // POSTリクエスト以外は受け付けません。
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
 
-    try {
-        // Step 1: 受付情報をAirtableに送信
-        const orderResponse = await fetch(AIRTABLE_ORDERS_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ fields: orderData })
-        });
-        if (!orderResponse.ok) {
-            const errorText = await orderResponse.text();
-            throw new Error(`Airtable Order Error: ${errorText}`);
-        }
-        const newOrder = await orderResponse.json();
-        const orderId = newOrder.id;
+  try {
+    // フロントエンドから送られてきたJSONデータを解析します。
+    const data = JSON.parse(event.body);
+    const { baseSelection, order, items } = data; // フロントからbaseSelectionを受け取ります。
 
-        // Step 2 & 3: 各商品情報と証書情報をAirtableに送信
-        for (const item of items) {
-            const { itemData, certData } = item;
-            itemData['受付ID'] = [orderId]; // 受付IDを紐付ける
-
-            const itemResponse = await fetch(AIRTABLE_ITEMS_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ fields: itemData })
-            });
-            if (!itemResponse.ok) {
-                const errorText = await itemResponse.text();
-                throw new Error(`Airtable Item Error: ${errorText}`);
-            }
-            const newItem = await itemResponse.json();
-            const itemId = newItem.id;
-
-            certData['商品ID'] = [itemId]; // 商品IDを紐付ける
-            const certResponse = await fetch(AIRTABLE_CERTIFICATES_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ fields: certData })
-            });
-            if (!certResponse.ok) {
-                const errorText = await certResponse.text();
-                throw new Error(`Airtable Certificate Error: ${errorText}`);
-            }
-        }
-
-        // 成功した場合は、成功メッセージを返す
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ message: '受付が正常に完了しました。' })
-        };
-
-    } catch (error) {
-        console.error('Submission Error:', error);
-        // エラーが発生した場合は、エラーメッセージを返す
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: error.message })
-        };
+    // フロントエンドからの指示に応じて、使用するBase IDを決定します。
+    let targetBaseId;
+    if (baseSelection === 'baseA') {
+      targetBaseId = AIRTABLE_BASE_ID_A;
+    } else if (baseSelection === 'baseB') {
+      targetBaseId = AIRTABLE_BASE_ID_B;
+    } else {
+      // 'baseA'でも'baseB'でもない、予期せぬ値が来た場合はエラーにします。
+      throw new Error(`無効なBaseが指定されました: ${baseSelection}`);
     }
+
+    // --- 1. 受付情報をAirtableに記録 ---
+    const orderTableUrl = `https://api.airtable.com/v0/${targetBaseId}/受付情報`;
+    const orderResponse = await fetch(orderTableUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields: order }),
+    });
+
+    if (!orderResponse.ok) {
+      throw new Error(`Airtable「受付情報」への記録に失敗しました: ${await orderResponse.text()}`);
+    }
+    const newOrder = await orderResponse.json();
+    const orderId = newOrder.id; // 作成された受付情報のIDを取得します。
+
+    // --- 2. 各商品と証書情報を、関連付けながら記録 ---
+    for (const item of items) {
+      // 商品情報に、先ほど作成した受付IDを紐付けます。
+      item.itemDetails['受付ID'] = [orderId];
+      
+      const itemTableUrl = `https://api.airtable.com/v0/${targetBaseId}/商品情報`;
+      const itemResponse = await fetch(itemTableUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: item.itemDetails }),
+      });
+
+      if (!itemResponse.ok) {
+        throw new Error(`Airtable「商品情報」への記録に失敗しました: ${await itemResponse.text()}`);
+      }
+      const newItem = await itemResponse.json();
+      const itemId = newItem.id; // 作成された商品情報のIDを取得します。
+
+      // 証書情報に、先ほど作成した商品IDを紐付けます。
+      item.certDetails['商品ID'] = [itemId];
+      
+      const certTableUrl = `https://api.airtable.com/v0/${targetBaseId}/証書情報`;
+      const certResponse = await fetch(certTableUrl, {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
+         body: JSON.stringify({ fields: item.certDetails }),
+      });
+
+      if (!certResponse.ok) {
+        throw new Error(`Airtable「証書情報」への記録に失敗しました: ${await certResponse.text()}`);
+      }
+    }
+
+    // すべての処理が成功した場合、成功メッセージを返します。
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: '受付が正常に完了しました。', orderId: orderId }),
+    };
+
+  } catch (error) {
+    console.error('サーバーレス関数でエラーが発生しました:', error);
+    // エラーが発生した場合、エラーメッセージを返します。
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message }),
+    };
+  }
 };
 

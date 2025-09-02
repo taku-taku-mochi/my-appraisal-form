@@ -20,7 +20,6 @@
         </div>
         <p class="text-center text-gray-600 mb-8">ご希望のサービスと商品情報をご入力ください。</p>
         
-        <!-- Step Indicator -->
         <div class="flex items-center justify-between mb-8">
             <div class="flex-1 text-center">
                 <div class="step-indicator w-full h-2 bg-blue-500 rounded-full mx-auto"></div>
@@ -37,40 +36,41 @@
         </div>
 
         <form id="receptionForm" class="space-y-8">
-            <!-- Step 1: Customer Information -->
             <div id="step1" class="step-content active">
                 <div class="bg-gray-50 p-6 rounded-lg shadow-inner">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4">お客様情報</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-4">お客様情報</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="customerName" class="block text-sm font-medium text-gray-600">会社名（お名前）<span class="text-red-500">*</span></label>
                             <input type="text" id="customerName" name="customerName" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md form-input">
                         </div>
                         <div>
-                            <label for="contactInfo" class="block text-sm font-medium text-gray-600">電話番号<span class="text-red-500">*</span></label>
-                            <input type="tel" id="contactInfo" name="contactInfo" required autocomplete="tel" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md form-input">
+                            <label for="email" class="block text-sm font-medium text-gray-600">Eメールアドレス<span class="text-red-500">*</span></label>
+                            <input type="email" id="email" name="email" required autocomplete="email" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md form-input">
                         </div>
-                        <div>
-                            <label for="desiredDeliveryDate" class="block text-sm font-medium text-gray-600">希望納期<span class="text-red-500">*</span></label>
-                            <input type="date" id="desiredDeliveryDate" name="desiredDeliveryDate" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md form-input">
+                        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="contactInfo" class="block text-sm font-medium text-gray-600">電話番号<span class="text-red-500">*</span></label>
+                                <input type="tel" id="contactInfo" name="contactInfo" required autocomplete="tel" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md form-input">
+                            </div>
+                            <div>
+                                <label for="desiredDeliveryDate" class="block text-sm font-medium text-gray-600">希望納期<span class="text-red-500">*</span></label>
+                                <input type="date" id="desiredDeliveryDate" name="desiredDeliveryDate" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md form-input">
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="flex justify-end mt-6">
-                    <button type="button" id="nextStep1Btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-600 btn-primary flex items-center justify-center">
-                        次へ
-                    </button>
+                    <button type="button" id="nextStep1Btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-600 btn-primary">次へ</button>
                 </div>
             </div>
 
-            <!-- Step 2 and 3 will be populated by script.js -->
             <div id="step2" class="step-content"></div>
             <div id="step3" class="step-content"></div>
-
         </form>
         <div id="messageBox" class="p-4 text-center rounded-lg text-sm hidden mt-6"></div>
     </div>
-<script src="script.js?v=2" type="module"></script>
+    <script src="script.js?v=final-customer-db" type="module"></script>
 </body>
 </html>
 

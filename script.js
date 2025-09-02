@@ -3,9 +3,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebas
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
-// --- Firebase Configuration (Corrected API Key) ---
+// --- Firebase Configuration ---
 const firebaseConfig = {
-  apiKey: "AIzaSyCno4IpUnBn9XeD0HKoyMxxXZAW-4imNg", // Typo corrected
+  apiKey: "AIzaSyCno4IpUnBn9XeD0HKoyMxxXZAW-4imNg",
   authDomain: "my-appraisal-form.firebaseapp.com",
   projectId: "my-appraisal-form",
   storageBucket: "my-appraisal-form.firebasestorage.app",
@@ -14,17 +14,13 @@ const firebaseConfig = {
   measurementId: "G-8WC19S8L83"
 };
 
-// --- GLOBAL STATE & UTILITY FUNCTIONS (moved to global scope) ---
+// --- GLOBAL STATE & UTILITY FUNCTIONS ---
 let storage;
 let itemCounter = 0;
 
-// ★★★
-// ★ `showMessage` and other core functions are now in the global scope,
-// ★ making them accessible from anywhere in the script.
-// ★★★
 function showMessage(message, type) {
     const messageBox = document.getElementById('messageBox');
-    if (!messageBox) return; // Guard against race conditions on initial load
+    if (!messageBox) { console.error("MessageBox not found"); return; }
     messageBox.textContent = message;
     messageBox.className = 'p-4 text-center rounded-lg text-sm mt-6';
     if (type === 'success') messageBox.classList.add('bg-green-100', 'text-green-700');
@@ -42,14 +38,14 @@ try {
     storage = getStorage(app);
     const auth = getAuth(app);
     signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed, uploads might be restricted.", error);
+        console.error("Anonymous sign-in failed:", error);
         showMessage('画像アップロードの認証に失敗しました。', 'error');
     });
 } catch (error) {
     console.error("Firebase Initialization Error:", error.message);
     storage = null;
-    // Show error immediately, no need to wait for DOMContentLoaded
-    showMessage(`Firebaseの初期化に失敗しました: ${error.message}`, 'error');
+    // Delay showing message until DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => showMessage(`Firebaseの初期化に失敗しました: ${error.message}`, 'error'));
 }
 
 // --- DATA & PRICES ---
@@ -68,12 +64,10 @@ const CERTIFICATE_SIZES = ['S', 'M', 'L', 'メモ（ソーティング）', 'D']
 // --- DOMContentLoaded: Attach event listeners and build dynamic content ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- DOM ELEMENTS ---
     const form = document.getElementById('receptionForm');
     const step2Container = document.getElementById('step2');
     const step3Container = document.getElementById('step3');
 
-    // --- DYNAMICALLY CREATE STEP 2 & 3 CONTENT ---
     step2Container.innerHTML = `
         <div class="bg-gray-50 p-6 rounded-lg shadow-inner space-y-4">
             <h2 class="text-2xl font-semibold text-gray-700">商品情報</h2>
@@ -107,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </button>
         </div>`;
     
-    // --- GET DYNAMIC DOM ELEMENTS ---
     const itemsContainer = document.getElementById('itemsContainer');
     const addItemBtnTop = document.getElementById('addItemBtnTop');
     const totalPriceEl = document.getElementById('totalPrice');
@@ -120,8 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const stepIndicators = document.querySelectorAll('.step-indicator');
     const stepTexts = document.querySelectorAll('.step-text');
 
-
-    // --- DYNAMIC ELEMENT FUNCTIONS ---
     function createSelectBlock(options, name, placeholder) {
         const selectEl = document.createElement('select');
         selectEl.name = name;
@@ -213,7 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- UI UPDATE FUNCTIONS ---
     function updateItemNumbers() {
         itemsContainer.querySelectorAll('.item-block').forEach((block, index) => {
             block.querySelector('.item-number').textContent = `商品 #${index + 1}`;
@@ -256,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         customerInfoDiv.className = 'border-b pb-4';
         customerInfoDiv.innerHTML = `<h3 class="font-bold text-lg mb-2">お客様情報</h3>
             <p><strong>会社名（お名前）:</strong> ${document.getElementById('customerName').value}</p>
+            <p><strong>Eメールアドレス:</strong> ${document.getElementById('email').value}</p>
             <p><strong>電話番号:</strong> ${document.getElementById('contactInfo').value}</p>
             <p><strong>希望納期:</strong> ${document.getElementById('desiredDeliveryDate').value}</p>`;
         confirmationSummary.appendChild(customerInfoDiv);
@@ -315,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- EVENT LISTENERS ---
     nextStep1Btn.addEventListener('click', () => form.checkValidity() ? goToStep(2) : form.reportValidity());
     prevStep2Btn.addEventListener('click', () => goToStep(1));
     nextStep2Btn.addEventListener('click', () => {
@@ -335,20 +325,15 @@ document.addEventListener('DOMContentLoaded', () => {
     itemsContainer.addEventListener('click', e => {
         const itemBlock = e.target.closest('.item-block');
         if (!itemBlock) return;
-
         if (e.target.closest('.remove-item-block-btn')) {
-            if (itemsContainer.children.length > 1) {
-                itemBlock.remove();
-                updateItemNumbers();
-            } else {
-                showMessage('少なくとも1つの商品が必要です。', 'error');
-            }
+            if (itemsContainer.children.length > 1) itemBlock.remove(); else showMessage('少なくとも1つの商品が必要です。', 'error');
+            updateItemNumbers();
         } else if (e.target.closest('.accordion-header')) {
             const isOpening = !itemBlock.classList.contains('is-open');
-            itemsContainer.querySelectorAll('.item-block').forEach(block => {
-                block.classList.remove('is-open');
-                block.querySelector('.accordion-content').classList.remove('open');
-                block.querySelector('.accordion-icon').classList.remove('rotate-180');
+            itemsContainer.querySelectorAll('.item-block').forEach(b => {
+                b.classList.remove('is-open');
+                b.querySelector('.accordion-content').classList.remove('open');
+                b.querySelector('.accordion-icon').classList.remove('rotate-180');
             });
             itemBlock.classList.toggle('is-open', isOpening);
             itemBlock.querySelector('.accordion-content').classList.toggle('open', isOpening);
@@ -358,10 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSummary(itemBlock);
     });
 
-    itemsContainer.addEventListener('dragover', e => {
-        e.preventDefault();
-        e.target.closest('.drop-zone')?.classList.add('drag-active');
-    });
+    itemsContainer.addEventListener('dragover', e => { e.preventDefault(); e.target.closest('.drop-zone')?.classList.add('drag-active'); });
     itemsContainer.addEventListener('dragleave', e => e.target.closest('.drop-zone')?.classList.remove('drag-active'));
     itemsContainer.addEventListener('drop', e => {
         e.preventDefault();
@@ -384,7 +366,6 @@ document.addEventListener('DOMContentLoaded', () => {
         async function uploadFileAndGetUrl(file) {
             if (!storage) {
                 console.error("Firebase Storage is not initialized. Skipping upload.");
-                // 画像アップロードが初期化されていない場合でも、エラーは表示済みなのでここではnullを返すだけ
                 return null; 
             }
             const filePath = `uploads/${Date.now()}-${file.name}`;
@@ -398,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const orderFields = {
                 'customer_name': form.customerName.value,
+                'email': form.email.value,
                 'contact_info': form.contactInfo.value,
                 'reception_date': new Date().toISOString().split('T')[0],
                 'delivery_date': form.desiredDeliveryDate.value,
@@ -407,7 +389,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemsData = [];
             for (const block of itemsContainer.querySelectorAll('.item-block')) {
                 const imageInput = block.querySelector('input[type="file"]');
-                
                 const uploadPromises = Array.from(imageInput.files).map(file => uploadFileAndGetUrl(file));
                 const attachmentUrls = (await Promise.all(uploadPromises)).filter(url => url !== null);
 
@@ -463,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- INITIALIZATION ---
     addItemBlock(true);
 });
 

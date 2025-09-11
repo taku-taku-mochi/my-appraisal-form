@@ -29,22 +29,18 @@ function showMessage(message, type) {
     messageBox.classList.remove('hidden');
 }
 
-// --- Initialize Firebase (runs immediately) ---
+// --- Initialize Firebase ---
 try {
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("YOUR_API_KEY")) {
-        throw new Error("Firebase設定が無効です。`firebaseConfig`オブジェクトを、ご自身のFirebaseプロジェクトの正しい設定に置き換えてください。");
+        throw new Error("Firebase設定が無効です。");
     }
     const app = initializeApp(firebaseConfig);
     storage = getStorage(app);
     const auth = getAuth(app);
-    signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
-        showMessage('画像アップロードの認証に失敗しました。', 'error');
-    });
+    signInAnonymously(auth).catch((error) => console.error("Anonymous sign-in failed:", error));
 } catch (error) {
     console.error("Firebase Initialization Error:", error.message);
     storage = null;
-    // Delay showing message until DOM is loaded
     document.addEventListener('DOMContentLoaded', () => showMessage(`Firebaseの初期化に失敗しました: ${error.message}`, 'error'));
 }
 
@@ -53,21 +49,19 @@ const CERTIFICATE_PRICES = {
     鑑定書: { 'S': 15000, 'M': 20000, 'L': 25000, 'メモ（ソーティング）': 30000, 'D': 35000 },
     鑑別書: { 'S': 10000, 'M': 15000, 'L': 20000, 'メモ（ソーティング）': 25000, 'D': 30000 }
 };
-const OPTION_PRICES = {
-    'オプションA': 1000, 'オプションB': 2000, 'オプションC': 1500, 'オプションD': 2500,
-    'オプションE': 3000, 'オプションF': 500, 'オプションG': 1800
-};
+const OPTION_PRICES = { 'オプションA': 1000, 'オプションB': 2000, 'オプションC': 1500, 'オプションD': 2500, 'オプションE': 3000, 'オプションF': 500, 'オプションG': 1800 };
 const ITEM_TYPES = ['リング', 'ペンダント', 'ピアス', 'イヤリング', 'ネックレス', 'ブレスレット', 'カフス', 'ブローチ', 'ルース'];
 const CERTIFICATE_TYPES = ['鑑定書', '鑑別書'];
 const CERTIFICATE_SIZES = ['S', 'M', 'L', 'メモ（ソーティング）', 'D'];
 
-// --- DOMContentLoaded: Attach event listeners and build dynamic content ---
+// --- DOMContentLoaded: Main application logic starts here ---
 document.addEventListener('DOMContentLoaded', () => {
 
     const form = document.getElementById('receptionForm');
     const step2Container = document.getElementById('step2');
     const step3Container = document.getElementById('step3');
 
+    // --- Dynamically create Step 2 & 3 content ---
     step2Container.innerHTML = `
         <div class="bg-gray-50 p-6 rounded-lg shadow-inner space-y-4">
             <h2 class="text-2xl font-semibold text-gray-700">商品情報</h2>
@@ -83,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <button type="button" id="prevStep2Btn" class="bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-gray-400">戻る</button>
             <button type="button" id="nextStep2Btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-600 btn-primary">次へ</button>
         </div>`;
-
     step3Container.innerHTML = `
         <div class="bg-gray-50 p-6 rounded-lg shadow-inner">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">内容確認</h2>
@@ -101,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </button>
         </div>`;
     
+    // --- Get all DOM Elements ---
     const itemsContainer = document.getElementById('itemsContainer');
     const addItemBtnTop = document.getElementById('addItemBtnTop');
     const totalPriceEl = document.getElementById('totalPrice');
@@ -112,7 +106,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextStep1Btn = document.getElementById('nextStep1Btn');
     const stepIndicators = document.querySelectorAll('.step-indicator');
     const stepTexts = document.querySelectorAll('.step-text');
+    const identityMenu = document.getElementById('identity-menu');
 
+    // ★★★ Netlify Identity Logic ★★★
+    
+    // Function to update UI based on login status
+    const updateUserUI = (user) => {
+        identityMenu.innerHTML = ''; // Clear previous buttons
+        const button = document.createElement('button');
+        button.className = 'bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-500 rounded-lg shadow-md hover:bg-blue-50';
+        
+        if (user) {
+            button.textContent = 'ログアウト';
+            button.onclick = () => netlifyIdentity.logout();
+            
+            // --- Auto-fill form data for logged-in user ---
+            // When user logs in, call a serverless function to get their data from Airtable
+            fetch('/.netlify/functions/get-customer-data', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${user.token.access_token}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.customer) {
+                    form.customerName.value = data.customer.customer_name || '';
+                    form.email.value = data.customer.email || '';
+                    form.contactInfo.value = data.customer.contact_info || '';
+                }
+            })
+            .catch(err => console.error("Failed to fetch customer data:", err));
+
+        } else {
+            button.textContent = 'ログイン / 新規登録';
+            button.onclick = () => netlifyIdentity.open();
+        }
+        identityMenu.appendChild(button);
+    };
+
+    // Initialize Netlify Identity and set up event listeners
+    netlifyIdentity.on('init', user => updateUserUI(user));
+    netlifyIdentity.on('login', user => {
+        updateUserUI(user);
+        netlifyIdentity.close(); // Close the login modal
+    });
+    netlifyIdentity.on('logout', () => {
+        updateUserUI(null);
+        form.reset(); // Clear form on logout
+    });
+
+    // --- Core Form Functions (mostly unchanged) ---
+    // ... (createSelectBlock, createCertTypeToggle, addItemBlock, updateItemNumbers, etc.)
+    // ... all the UI helper functions from the previous version go here
     function createSelectBlock(options, name, placeholder) {
         const selectEl = document.createElement('select');
         selectEl.name = name;
@@ -306,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Main Event Listeners ---
     nextStep1Btn.addEventListener('click', () => form.checkValidity() ? goToStep(2) : form.reportValidity());
     prevStep2Btn.addEventListener('click', () => goToStep(1));
     nextStep2Btn.addEventListener('click', () => {
@@ -364,10 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage('送信中...', 'info');
 
         async function uploadFileAndGetUrl(file) {
-            if (!storage) {
-                console.error("Firebase Storage is not initialized. Skipping upload.");
-                return null; 
-            }
+            if (!storage) { return null; }
             const filePath = `uploads/${Date.now()}-${file.name}`;
             const storageRef = ref(storage, filePath);
             const snapshot = await uploadBytes(storageRef, file);
@@ -375,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const baseSelection = 'baseA'; 
+            const currentUser = netlifyIdentity.currentUser();
 
             const orderFields = {
                 'customer_name': form.customerName.value,
@@ -383,7 +425,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'contact_info': form.contactInfo.value,
                 'reception_date': new Date().toISOString().split('T')[0],
                 'delivery_date': form.desiredDeliveryDate.value,
-                'total_price': parseInt(totalPriceEl.textContent.replace(/[¥,]/g, ''), 10)
+                'total_price': parseInt(totalPriceEl.textContent.replace(/[¥,]/g, ''), 10),
+                'netlify_user_id': currentUser ? currentUser.id : undefined
             };
 
             const itemsData = [];
@@ -416,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    baseSelection: baseSelection,
+                    baseSelection: 'baseA',
                     order: orderFields, 
                     items: itemsData 
                 }),
@@ -444,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- INITIALIZATION ---
     addItemBlock(true);
 });
 

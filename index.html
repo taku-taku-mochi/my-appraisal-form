@@ -12,7 +12,7 @@
 </head>
 <body class="bg-gray-100 p-4 sm:p-8 flex items-center justify-center min-h-screen">
     
-    <div id="identity-menu" class="absolute top-4 right-4"></div>
+    <div id="identity-menu" class="absolute top-4 right-4 z-10"></div>
 
     <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl">
         <div class="flex items-center justify-center mb-6">
@@ -73,8 +73,12 @@
         </form>
         <div id="messageBox" class="p-4 text-center rounded-lg text-sm hidden mt-6"></div>
     </div>
-    <script src="script.js?v=final" type="module"></script>
+    
+    <!-- ★変更：Netlifyの「エンジン」を、先に読み込みます -->
     <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    
+    <!-- ★変更：その後に、私たちの「頭脳」を読み込みます -->
+    <script src="script.js?v=login-fixed" type="module"></script>
 </body>
 </html>
 

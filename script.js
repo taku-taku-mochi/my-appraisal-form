@@ -20,7 +20,7 @@ let itemCounter = 0;
 
 function showMessage(message, type) {
     const messageBox = document.getElementById('messageBox');
-    if (!messageBox) return;
+    if (!messageBox) { console.error("MessageBox not found"); return; }
     messageBox.textContent = message;
     messageBox.className = 'p-4 text-center rounded-lg text-sm mt-6';
     if (type === 'success') messageBox.classList.add('bg-green-100', 'text-green-700');
@@ -31,13 +31,13 @@ function showMessage(message, type) {
 
 // --- Initialize Firebase ---
 try {
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("YOUR_API_KEY")) {
+        throw new Error("Firebase設定が無効です。");
+    }
     const app = initializeApp(firebaseConfig);
     storage = getStorage(app);
     const auth = getAuth(app);
-    signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
-        showMessage('画像アップロードの認証に失敗しました。', 'error');
-    });
+    signInAnonymously(auth).catch((error) => console.error("Anonymous sign-in failed:", error));
 } catch (error) {
     console.error("Firebase Initialization Error:", error.message);
     storage = null;
@@ -57,65 +57,88 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('receptionForm');
     const step2Container = document.getElementById('step2');
     const step3Container = document.getElementById('step3');
-    
-    // Dynamically create Step 2 & 3 content
+
     step2Container.innerHTML = `...`; // Content is the same as previous version
     step3Container.innerHTML = `...`; // Content is the same as previous version
 
-    // Get all DOM Elements
     const itemsContainer = document.getElementById('itemsContainer');
-    // ... and all other elements
+    const addItemBtnTop = document.getElementById('addItemBtnTop');
+    const totalPriceEl = document.getElementById('totalPrice');
+    const confirmationSummary = document.getElementById('confirmationSummary');
+    const prevStep2Btn = document.getElementById('prevStep2Btn');
+    const nextStep2Btn = document.getElementById('nextStep2Btn');
+    const prevStep3Btn = document.getElementById('prevStep3Btn');
+    const submitBtn = document.getElementById('submitBtn');
+    const nextStep1Btn = document.getElementById('nextStep1Btn');
 
-    // --- Netlify Identity Logic ---
-    const updateUserUI = (user) => {
+    // ★★★ Netlify Identity Logic ★★★
+    // ★変更：Netlifyの「エンジン」が存在するか、安全に確認してから実行します
+    if (window.netlifyIdentity) {
         const identityMenu = document.getElementById('identity-menu');
-        identityMenu.innerHTML = '';
-        const button = document.createElement('button');
-        button.className = 'bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-500 rounded-lg shadow-md hover:bg-blue-50';
         
-        if (user) {
-            button.textContent = 'ログアウト';
-            button.onclick = () => netlifyIdentity.logout();
+        const updateUserUI = (user) => {
+            identityMenu.innerHTML = '';
+            const button = document.createElement('button');
+            button.className = 'bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-500 rounded-lg shadow-md hover:bg-blue-50';
             
-            fetch('/.netlify/functions/get-customer-data', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${user.token.access_token}` }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.customer) {
-                    form.customerName.value = data.customer.customer_name || '';
-                    form.email.value = data.customer.email || '';
-                    form.contactInfo.value = data.customer.contact_info || '';
-                }
-            })
-            .catch(err => console.error("Failed to fetch customer data:", err));
+            if (user) {
+                button.textContent = 'ログアウト';
+                button.onclick = () => netlifyIdentity.logout();
+                
+                fetch('/.netlify/functions/get-customer-data', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${user.token.access_token}` }
+                })
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(data => {
+                    if (data.customer) {
+                        form.customerName.value = data.customer.customer_name || '';
+                        form.email.value = data.customer.email || '';
+                        form.contactInfo.value = data.customer.contact_info || '';
+                    }
+                })
+                .catch(err => console.error("Failed to fetch customer data:", err));
 
-        } else {
-            button.textContent = 'ログイン / 新規登録';
-            button.onclick = () => netlifyIdentity.open();
-        }
-        identityMenu.appendChild(button);
-    };
+            } else {
+                button.textContent = 'ログイン / 新規登録';
+                button.onclick = () => netlifyIdentity.open();
+            }
+            identityMenu.appendChild(button);
+        };
 
-    netlifyIdentity.on('init', user => updateUserUI(user));
-    netlifyIdentity.on('login', user => {
-        updateUserUI(user);
-        netlifyIdentity.close();
-    });
-    netlifyIdentity.on('logout', () => {
-        updateUserUI(null);
-        form.reset();
-    });
+        netlifyIdentity.on('init', user => updateUserUI(user));
+        netlifyIdentity.on('login', user => {
+            updateUserUI(user);
+            netlifyIdentity.close();
+        });
+        netlifyIdentity.on('logout', () => {
+            updateUserUI(null);
+            form.reset();
+        });
+    } else {
+        console.error("Netlify Identity widget could not be found.");
+    }
     
     // All other functions (createSelectBlock, addItemBlock, etc.) are the same
 
     // Form Submission Logic
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // ... submit logic is the same, sending data to submit-form function
+        // ... submit logic is the same
     });
 
     // --- INITIALIZATION ---
     addItemBlock(true);
+    
+    // Attach other event listeners
+    nextStep1Btn.addEventListener('click', () => form.checkValidity() ? goToStep(2) : form.reportValidity());
+    prevStep2Btn.addEventListener('click', () => goToStep(1));
+    nextStep2Btn.addEventListener('click', () => {
+        if (itemsContainer.children.length === 0) return showMessage('商品を1つ以上追加してください。', 'error');
+        updateConfirmationSummary();
+        goToStep(3);
+    });
+    prevStep3Btn.addEventListener('click', () => goToStep(2));
+    addItemBtnTop.addEventListener('click', () => addItemBlock(true));
 });
+

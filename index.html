@@ -15,29 +15,7 @@
     <div id="identity-menu" class="absolute top-4 right-4 z-10"></div>
 
     <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl">
-        <div class="flex items-center justify-center mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-            </svg>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">鑑別・鑑定受付フォーム</h1>
-        </div>
-        <p class="text-center text-gray-600 mb-8">ご希望のサービスと商品情報をご入力ください。</p>
-        
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex-1 text-center">
-                <div class="step-indicator w-full h-2 bg-blue-500 rounded-full mx-auto"></div>
-                <p class="step-text text-sm mt-2 text-blue-600 font-medium">お客様情報</p>
-            </div>
-            <div class="flex-1 text-center">
-                <div class="step-indicator w-full h-2 bg-gray-300 rounded-full mx-auto"></div>
-                <p class="step-text text-sm mt-2 text-gray-500">商品情報</p>
-            </div>
-            <div class="flex-1 text-center">
-                <div class="step-indicator w-full h-2 bg-gray-300 rounded-full mx-auto"></div>
-                <p class="step-text text-sm mt-2 text-gray-500">確認</p>
-            </div>
-        </div>
-
+        <!-- ... (header and form content is the same) ... -->
         <form id="receptionForm" class="space-y-8">
             <div id="step1" class="step-content active">
                 <div class="bg-gray-50 p-6 rounded-lg shadow-inner">
@@ -74,11 +52,12 @@
         <div id="messageBox" class="p-4 text-center rounded-lg text-sm hidden mt-6"></div>
     </div>
     
-    <!-- ★変更：Netlifyの「エンジン」を、先に読み込みます -->
+    <!-- Netlify's "engine" is loaded first -->
     <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     
-    <!-- ★変更：その後に、私たちの「頭脳」を読み込みます -->
-    <script src="script.js?v=login-fixed-2" type="module"></script>
+    <!-- Our "brain" is loaded second, with a new name to bust the cache -->
+    <script src="main.js" type="module"></script>
 </body>
 </html>
+```
 

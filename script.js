@@ -300,7 +300,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // ... submit logic is the same
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.submit-text').classList.add('hidden');
+        submitBtn.querySelector('.spinner').classList.remove('hidden');
+        showMessage('送信中...', 'info');
+
+        async function uploadFileAndGetUrl(file) {
+            if (!storage) return null; 
+            const filePath = `uploads/${Date.now()}-${file.name}`;
+            const storageRef = ref(storage, filePath);
+            const snapshot = await uploadBytes(storageRef, file);
+            return await getDownloadURL(snapshot.ref);
+        }
+
+        try {
+            const currentUser = window.netlifyIdentity ? netlifyIdentity.currentUser() : null;
+            const orderFields = {
+                'customer_name': form.customerName.value,
+                'email': form.email.value,
+                'contact_info': form.contactInfo.value,
+                'reception_date': new Date().toISOString().split('T')[0],
+                'delivery_date': form.desiredDeliveryDate.value,
+                'total_price': parseInt(totalPriceEl.textContent.replace(/[¥,]/g, ''), 10),
+                'netlify_user_id': currentUser ? currentUser.id : undefined
+            };
+
+            const itemsData = [];
+            for (const block of itemsContainer.querySelectorAll('.item-block')) {
+                const imageInput = block.querySelector('input[type="file"]');
+                const uploadPromises = Array.from(imageInput.files).map(file => uploadFileAndGetUrl(file));
+                const attachmentUrls = (await Promise.all(uploadPromises)).filter(url => url !== null);
+
+                const itemDetails = {
+                    'item_type': block.querySelector('[name="itemType"]').value,
+                    'notes': block.querySelector('[name="itemNotes"]').value,
+                    'photos': attachmentUrls.length > 0 ? attachmentUrls.map(url => ({ url })) : undefined
+                };
+
+                const certType = block.querySelector(`input[name^="certificateType-"]:checked`).value;
+                const certSize = block.querySelector(`select[name="certificateSize"]`).value;
+                const options = Array.from(block.querySelectorAll('input[name="itemOptions"]:checked')).map(cb => cb.value);
+                
+                const certDetails = {
+                    'cert_type': certType,
+                    'cert_size': certSize,
+                    'options': options,
+                    'price': (CERTIFICATE_PRICES[certType]?.[certSize] || 0) + options.reduce((sum, opt) => sum + (OPTION_PRICES[opt] || 0), 0)
+                };
+                
+                itemsData.push({ itemDetails, certDetails });
+            }
+
+            const response = await fetch('/.netlify/functions/submit-form', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    baseSelection: 'baseA',
+                    order: orderFields, 
+                    items: itemsData 
+                }),
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.json();
+                throw new Error(errorBody.error || `サーバーでエラーが発生しました。`);
+            }
+            
+            showMessage('受付が完了しました！', 'success');
+            form.reset();
+            itemsContainer.innerHTML = '';
+            itemCounter = 0;
+            addItemBlock(true);
+            goToStep(1);
+
+        } catch (error) {
+            console.error('Submission Error:', error);
+            showMessage(`エラーが発生しました: ${error.message}`, 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.querySelector('.submit-text').classList.remove('hidden');
+            submitBtn.querySelector('.spinner').classList.add('hidden');
+        }
     });
 
     // --- INITIALIZATION ---
